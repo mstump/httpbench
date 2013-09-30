@@ -3,6 +3,13 @@ httpbench
 
 HTTP load test engine written in Go. This originally started as a fork of [gobench](https://github.com/cmpxchg16/gobench), but as I got more into it, the fork evolved into a rewrite, hence the name change. The major functionality added is the ability to send load to multiple HTTP servers, and enhanced reporting. In addition to reporting requests per interval and througput we also report latency quantiles of 50%, 95% and 99%.
 
+### Building
+It is assumed you have [Go 1.1.2](http://golang.org/) or later installed. Clone the repo, and change to the directory
+
+```
+export GOPATH=`pwd` && go get -d && go run httpbench.go
+```
+
 ### Usage
 ```
 Usage of ./httpbench:

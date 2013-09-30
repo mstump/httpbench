@@ -115,12 +115,11 @@ func metricsUpdater(config *Configuration, metrics *Metrics, quit chan bool, res
 
 	for {
 		select {
-		case <-quit:
-			printStatus(config, metrics)
-			break
 		case <-tick.C:
 			printStatus(config, metrics)
-			// metrics.ResetQuantiles()
+			metrics.ResetQuantiles()
+		case <-quit:
+			return
 		case r := <-results:
 			metrics.AddResult(&r)
 		}
@@ -244,7 +243,6 @@ func checkConfiguration(config *Configuration) error {
 }
 
 func readLines(path string) (lines []string, err error) {
-
 	var file *os.File
 	var part []byte
 	var prefix bool
@@ -310,7 +308,9 @@ func client(config *Configuration, quit chan bool, results chan Result, done *sy
 		}
 	}()
 
-	defer done.Done()
+	defer func() {
+		done.Done()
+	}()
 
 	var result Result
 	httpclient := HTTPClient(&result, time.Duration(config.httpConnectTimeout)*time.Millisecond,
@@ -321,9 +321,12 @@ func client(config *Configuration, quit chan bool, results chan Result, done *sy
 	urlsLength := len(config.urls)
 
 	for {
-		if len(quit) > 0 {
-			break
+		select {
+		case <-quit:
+			return
+		default:
 		}
+
 		tmpUrl := config.urls[random(0, urlsLength)]
 		result.Reset()
 
@@ -420,8 +423,6 @@ func main() {
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		_ = <-signalChannel
-		quit <- true
-		printStatus(config, metrics)
 		os.Exit(0)
 	}()
 
@@ -434,11 +435,10 @@ func main() {
 	var clientGroup sync.WaitGroup
 
 	// spawn the metric updater
-	results := make(chan Result)
+	results := make(chan Result, 100000)
 	go metricsUpdater(config, metrics, quit, results)
 
 	// spawn the clients
-	fmt.Printf("Dispatching %d clients\n", config.concurrentClients)
 	clientGroup.Add(config.concurrentClients)
 	for i := 0; i < config.concurrentClients; i++ {
 		go client(config, quit, results, &clientGroup)
@@ -447,11 +447,12 @@ func main() {
 	// wait for test duration
 	for {
 		if time.Now().Sub(startTime).Nanoseconds() > config.testDuration {
-			quit <- true
+			close(quit)
 			break
 		}
-		time.Sleep(time.Second)
+		time.Sleep(1)
 	}
 
 	clientGroup.Wait()
+	printStatus(config, metrics)
 }

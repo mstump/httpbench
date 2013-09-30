@@ -14,10 +14,10 @@ import (
 	"math/rand"
 	"net"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"runtime"
+	"runtime/pprof"
 	"strings"
 	"sync"
 	"syscall"
@@ -40,6 +40,7 @@ type Configuration struct {
 	urlString            string
 	urls                 []string
 	urlsFilePath         string
+	cpuprofile           string
 }
 
 type Result struct {
@@ -186,6 +187,7 @@ func NewConfiguration() *Configuration {
 }
 
 func parseArgs(config *Configuration) {
+	flag.StringVar(&config.cpuprofile, "cpuprofile", "", "write cpu profile to file")
 	flag.Int64Var(&config.reportInterval, "r", 5, "How often to report statistics in seconds")
 	flag.IntVar(&config.concurrentClients, "c", 10, "Number of concurrent clients")
 	flag.StringVar(&config.hostsString, "h", "", "Optional comma delimited list of HTTP hosts which will be prepended to URLs")
@@ -412,12 +414,18 @@ func main() {
 		os.Exit(1)
 	}
 
+	if config.cpuprofile != "" {
+		f, err := os.Create(config.cpuprofile)
+		if err != nil {
+			log.Fatal(err)
+		}
+		pprof.StartCPUProfile(f)
+		defer pprof.StopCPUProfile()
+	}
+
 	startTime := time.Now()
 	metrics := NewMetrics()
 	quit := make(chan bool)
-
-	// start the profiler
-	// http.ListenAndServe("localhost:6060", nil)
 
 	signalChannel := make(chan os.Signal, 2)
 	signal.Notify(signalChannel, os.Interrupt, syscall.SIGTERM)

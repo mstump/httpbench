@@ -384,7 +384,7 @@ func printStatus(config *Configuration, metrics *Metrics) {
 		successRate = float64(metrics.success / metrics.total)
 		httpFailRate = float64(metrics.httpFailed / metrics.total)
 		netFailRate = float64(metrics.networkFailed / metrics.total)
-		sendThroughput = float64(metrics.totalResponseSize/config.reportInterval) / 1024.0
+		sendThroughput = float64(metrics.totalRequestSize/config.reportInterval) / 1024.0
 		receiveThroughput = float64(metrics.totalResponseSize/config.reportInterval) / 1024.0
 	}
 
